@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>LibreChat Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #0e131a; color: #e6edf3; }
+        .card { background: #161b22; border: 1px solid #30363d; }
+        .metric { background: linear-gradient(135deg, #ff4646, #010046); border: none; }
+        .nav-tabs .nav-link { color: #8b949e; }
+        .nav-tabs .nav-link.active { background: #344050; color: #1900ff; border-color: #30363d #30363d #161b22; }
+        .table { color: #e6edf3; }
+        /* chat */
+        .list-conv .list-group-item { background:#161b22; color:#e6edf3; border-color:#30363d; cursor:pointer; }
+        .list-conv .list-group-item.active { background:#1f6feb; border-color:#1f6feb; }
+        #chat details summary { cursor:pointer; }
+        #chat pre { background:#0e131a; padding:8px; border-radius:6px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow:auto; }
+        .msg-user { border-left:3px solid #1f6feb; }
+        .msg-ai   { border-left:3px solid #2ea043; }
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <h2 class="mb-4">🤖 LibreChat Admin</h2>
+
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-visao">📊 Visão Geral</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-usuarios">⚙️ Ferramentas</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-gastos">💰 Gastos</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-conversas">💬 Conversas</button></li>
+    </ul>
+
+    <div class="tab-content p-3 card border-top-0 rounded-0 rounded-bottom">
+
+        <!-- VISÃO GERAL -->
+        <div class="tab-pane fade show active" id="tab-visao">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card metric p-3"><small>👥 Usuários Ativos</small><h2 id="m-total">-</h2></div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card metric p-3" style="cursor:pointer" onclick="toggle('list-baixo')">
+                        <small>⚠️ Saldo Baixo (clique p/ ver)</small><h2 id="m-baixo">-</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card metric p-3" style="cursor:pointer" onclick="toggle('list-zero')">
+                        <small>🔴 Saldo Zerado (clique p/ ver)</small><h2 id="m-zero">-</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div id="list-baixo" class="card p-3 mb-3" style="display:none">
+                <h6>⚠️ Usuários com saldo baixo</h6>
+                <ul id="ul-baixo" class="list-unstyled mb-0 small"></ul>
+            </div>
+
+            <div id="list-zero" class="card p-3 mb-3" style="display:none">
+                <h6>🔴 Usuários com saldo zerado</h6>
+                <ul id="ul-zero" class="list-unstyled mb-0 small"></ul>
+            </div>
+
+            <h5>Top 10 Gastos (últimos 30 dias)</h5>
+            <canvas id="chart-top"></canvas>
+        </div>
+
+        <!-- USUÁRIOS -->
+        <div class="tab-pane fade" id="tab-usuarios">
+            <input id="busca" class="form-control mb-3" placeholder="🔍 Buscar por nome, email ou login (ex: br811501)">
+            <div id="resultados"></div>
+        </div>
+
+        <!-- GASTOS -->
+        <div class="tab-pane fade" id="tab-gastos">
+            <div class="mb-3">
+                <label>Período:</label>
+                <select id="periodo" class="form-select w-auto d-inline-block">
+                    <option value="7">Últimos 7 dias</option>
+                    <option value="30" selected>Últimos 30 dias</option>
+                    <option value="90">Últimos 90 dias</option>
+                </select>
+            </div>
+            <table class="table table-hover">
+                <thead><tr><th>#</th><th>Usuário</th><th>Total Gasto</th><th>Modelo Top</th></tr></thead>
+                <tbody id="tbl-gastos"></tbody>
+            </table>
+        </div>
+
+        <!-- 💬 CONVERSAS -->
+        <div class="tab-pane fade" id="tab-conversas">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <input id="c-user" class="form-control" placeholder="Matrícula LDAP (ex: br811501)">
+                </div>
+                <div class="col-md-2">
+                    <input id="c-inicio" type="date" class="form-control" title="Mensagens a partir de">
+                </div>
+                <div class="col-md-2">
+                    <input id="c-fim" type="date" class="form-control" title="Mensagens até">
+                </div>
+                <div class="col-md-3">
+                    <input id="c-texto" class="form-control" placeholder="🔍 contém texto...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" onclick="carregarConversas()">Buscar</button>
+                </div>
+            </div>
+
+            <div id="c-info" class="small text-muted mb-2"></div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div id="lista-conversas" class="list-group list-conv"></div>
+                </div>
+                <div class="col-md-8">
+                    <div id="chat" class="card p-3" style="min-height:300px; max-height:70vh; overflow:auto">
+                        <span class="text-muted">Busque uma matrícula e selecione uma conversa.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const fmt = n => Number(n).toLocaleString('pt-BR');
+const $ = id => document.getElementById(id);
+const escapeHtml = s => String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const dt = s => s ? new Date(s).toLocaleString('pt-BR') : '';
+
+// === VISÃO GERAL ===
+function toggle(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+fetch('/api/resumo').then(r => r.json()).then(d => {
+    $('m-total').textContent = fmt(d.total_usuarios);
+    $('m-baixo').textContent = fmt(d.saldo_baixo);
+    $('m-zero').textContent = fmt(d.saldo_zerado);
+
+    $('ul-baixo').innerHTML = d.saldo_baixo_list.map(u => `
+        <li>• <b>${u.nome || '-'}</b>
+            <span class="text-muted">${u.username || ''}</span>
+            — ${fmt(u.tokenCredits)} créditos</li>
+    `).join('') || '<li class="text-muted">Nenhum</li>';
+
+    $('ul-zero').innerHTML = d.saldo_zerado_list.map(u => `
+        <li>• <b>${u.nome || '-'}</b>
+            <span class="text-muted">${u.username || ''}</span></li>
+    `).join('') || '<li class="text-muted">Nenhum</li>';
+}).catch(e => console.error('Erro resumo:', e));
+
+let chartTop;
+function carregarRanking(dias = 30) {
+    fetch(`/api/ranking?dias=${dias}`).then(r => r.json()).then(data => {
+        if (chartTop) chartTop.destroy();
+        chartTop = new Chart($('chart-top'), {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.nome || d.email || d.username),
+                datasets: [{ label: 'Gasto', data: data.map(d => d.total_gasto), backgroundColor: '#1f6feb' }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+        $('tbl-gastos').innerHTML = data.map((d, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td><b>${d.nome || '-'}</b><br><small class="text-muted">${d.email || ''}</small></td>
+                <td>${fmt(d.total_gasto)}</td>
+                <td>${d.modelo_top}<br><small class="text-muted">${fmt(d.gasto_modelo_top)}</small></td>
+            </tr>
+        `).join('');
+    });
+}
+carregarRanking();
+$('periodo').addEventListener('change', e => carregarRanking(e.target.value));
+
+// === BUSCA DE USUÁRIOS ===
+let timer;
+$('busca').addEventListener('input', e => {
+    clearTimeout(timer);
+    timer = setTimeout(() => buscar(e.target.value), 300);
+});
+
+function buscar(termo) {
+    if (termo.length < 2) { $('resultados').innerHTML = ''; return; }
+    fetch(`/api/buscar?q=${encodeURIComponent(termo)}`).then(r => r.json()).then(data => {
+        $('resultados').innerHTML = data.map(u => `
+            <div class="card p-3 mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <b>${u.name || '(sem nome)'}</b>
+                        <span class="badge bg-secondary ms-2">${u.role || 'USER'}</span><br>
+                        <small class="text-muted">${u.email} · ${u.username || ''}</small><br>
+                        <small>💰 Créditos: <b>${fmt(u.tokenCredits)}</b></small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-info" onclick="abrirAcoes('${u._id}', '${(u.name || u.email).replace(/'/g,"\\'")}', '${u.role || 'USER'}')">⚙️ Ações</button>
+                        <button class="btn btn-sm btn-outline-light" onclick="verConversas('${u.username || ''}')">💬 Conversas</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    });
+}
+
+function abrirAcoes(id, nome, role) {
+    const valor = prompt(`Ações para "${nome}":\n\n1 = Adicionar créditos\n2 = Remover créditos\n3 = Alternar role (atual: ${role})\n\nDigite a opção:`);
+    if (!valor) return;
+    if (valor === '1' || valor === '2') {
+        const qtd = prompt('Quantidade de créditos:');
+        if (!qtd) return;
+        acao(valor === '1' ? 'add_creditos' : 'rem_creditos', id, qtd);
+    } else if (valor === '3') {
+        const nova = role === 'ADMIN' ? 'USER' : 'ADMIN';
+        if (confirm(`Alterar role para ${nova}?`)) acao('alterar_role', id, nova);
+    }
+}
+
+function acao(tipo, user_id, valor) {
+    fetch('/api/acao', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tipo, user_id, valor})
+    }).then(r => r.json()).then(d => {
+        alert(d.ok ? '✅ Sucesso!' : '❌ Erro: ' + d.erro);
+        if (d.ok) buscar($('busca').value);
+    });
+}
+
+// === 💬 CONVERSAS ===
+let convAtual = null;
+
+// atalho: vindo da aba de usuários
+function verConversas(username) {
+    if (!username) { alert('Usuário sem matrícula (username).'); return; }
+    $('c-user').value = username;
+    new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-conversas"]')).show();
+    carregarConversas();
+}
+
+$('c-user').addEventListener('keydown', e => {
+    if (e.key === 'Enter') carregarConversas();
+});
+
+function _filtrosQS(base) {
+    const qs = new URLSearchParams(base);
+    if ($('c-inicio').value) qs.set('inicio', $('c-inicio').value);
+    if ($('c-fim').value)    qs.set('fim', $('c-fim').value + 'T23:59:59');
+    return qs;
+}
+
+function carregarConversas() {
+    const u = $('c-user').value.trim();
+    if (!u) { alert('Digite a matrícula.'); return; }
+    $('lista-conversas').innerHTML = '<div class="text-muted p-2">Carregando...</div>';
+    $('chat').innerHTML = '<span class="text-muted">Selecione uma conversa.</span>';
+
+    fetch('/api/conversas?' + _filtrosQS({username: u})).then(r => r.json()).then(d => {
+        if (d.erro) {
+            $('c-info').textContent = '';
+            $('lista-conversas').innerHTML = `<div class="text-danger p-2">${d.erro}</div>`;
+            return;
+        }
+        const us = d.usuario;
+        $('c-info').innerHTML = `<b>${us.nome || '-'}</b> · ${us.email || ''} · ${us.username} — ${d.conversas.length} conversa(s)`;
+        $('lista-conversas').innerHTML = d.conversas.map(c => `
+            <div class="list-group-item" data-cid="${c.conversationId}" onclick="abrirConversa('${c.conversationId}', this)">
+                <b>${escapeHtml(c.title)}</b><br>
+                <small class="text-muted">${c.model || ''}</small><br>
+                <small class="text-muted">${c.qtd} msgs · ${dt(c.ultima)}</small>
+            </div>
+        `).join('') || '<div class="text-muted p-2">Nenhuma conversa no período.</div>';
+    });
+}
+
+function abrirConversa(convId, el) {
+    convAtual = convId;
+    document.querySelectorAll('#lista-conversas .list-group-item').forEach(x => x.classList.remove('active'));
+    if (el) el.classList.add('active');
+
+    $('chat').innerHTML = '<span class="text-muted">Carregando mensagens...</span>';
+    const qs = _filtrosQS({conv: convId});
+    if ($('c-texto').value) qs.set('texto', $('c-texto').value);
+    fetch('/api/mensagens?' + qs).then(r => r.json()).then(msgs => {
+        renderChat(msgs);
+        $('chat').scrollTop = 0;          // 👈 volta pro topo do chat
+        $('chat').scrollIntoView({behavior: 'smooth', block: 'start'}); // 👈 traz o painel pra vista
+    });
+}
+
+function renderChat(msgs) {
+    if (!msgs.length) {
+        $('chat').innerHTML = '<span class="text-muted">Sem mensagens (verifique os filtros).</span>';
+        return;
+    }
+    $('chat').innerHTML = msgs.map((m, mi) => {
+        const corpo = m.blocos.map((b, bi) => {
+            if (b.tipo === 'texto') {
+                return '<div class="mt-1">' + escapeHtml(b.conteudo).replace(/\n/g, '<br>') + '</div>';
+            }
+            const uid   = 'blk-' + mi + '-' + bi;
+            const label = b.tipo === 'thinking' ? '🧠 Ver raciocínio' : '🔧 Ver tool';
+            const cor   = b.tipo === 'thinking' ? 'text-warning' : 'text-info';
+            const txt   = (typeof b.conteudo === 'string') ? b.conteudo : JSON.stringify(b.conteudo, null, 2);
+            return '<div class="mt-2">' +
+                    '<a href="javascript:void(0)" class="' + cor + '" onclick="toggleBlk(\'' + uid + '\')">▸ ' + label + '</a>' +
+                    '<pre id="' + uid + '" style="display:none">' + escapeHtml(txt) + '</pre>' +
+                '</div>';
+        }).join('');
+        const cls  = m.isUser ? 'msg-user' : 'msg-ai';
+        const quem = m.isUser ? '👤 Usuário' : '🤖 ' + (m.model || m.sender || 'Assistente');
+        return '<div class="card p-2 mb-2 ' + cls + '">' +
+                '<small class="text-muted">' + quem + ' · ' + dt(m.createdAt) + '</small>' +
+                corpo +
+            '</div>';
+    }).join('');
+}
+
+function toggleBlk(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (el.style.display === 'none' ? 'block' : 'none');
+}
+</script>
+</body>
+</html>
