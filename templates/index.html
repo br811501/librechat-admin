@@ -6,19 +6,199 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background: #0e131a; color: #e6edf3; }
-        .card { background: #161b22; border: 1px solid #30363d; }
-        .metric { background: linear-gradient(135deg, #ff4646, #010046); border: none; }
-        .nav-tabs .nav-link { color: #8b949e; }
-        .nav-tabs .nav-link.active { background: #344050; color: #1900ff; border-color: #30363d #30363d #161b22; }
-        .table { color: #e6edf3; }
-        /* chat */
-        .list-conv .list-group-item { background:#161b22; color:#e6edf3; border-color:#30363d; cursor:pointer; }
-        .list-conv .list-group-item.active { background:#1f6feb; border-color:#1f6feb; }
-        #chat details summary { cursor:pointer; }
-        #chat pre { background:#0e131a; padding:8px; border-radius:6px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow:auto; }
-        .msg-user { border-left:3px solid #1f6feb; }
-        .msg-ai   { border-left:3px solid #2ea043; }
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 20%, rgba(77, 151, 255, 0.16), transparent 20%),
+                        radial-gradient(circle at 90% 10%, rgba(166, 59, 255, 0.12), transparent 15%),
+                        linear-gradient(135deg, #060815 0%, #0d1223 45%, #070811 100%);
+            color: #e9edf7;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 50% 5%, rgba(84, 140, 255, 0.12), transparent 15%),
+                        radial-gradient(circle at 15% 80%, rgba(148, 70, 255, 0.10), transparent 12%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .card {
+            background: rgba(16, 24, 45, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24), inset 0 0 1px rgba(255, 255, 255, 0.04);
+            border-radius: 24px;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(94, 154, 255, 0.22);
+            box-shadow: 0 28px 72px rgba(0, 0, 0, 0.26), inset 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        .metric {
+            background: linear-gradient(135deg, #4d80ff 0%, #a53cff 100%);
+            color: #fff;
+            border: none;
+            box-shadow: 0 20px 50px rgba(16, 39, 99, 0.38);
+        }
+
+        .metric h2 {
+            font-size: 2.6rem;
+            margin: 0;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-tabs {
+            border-bottom: none;
+        }
+
+        .nav-tabs .nav-link {
+            color: #9eb4d3;
+            background: rgba(11, 20, 39, 0.95);
+            border: none;
+            border-radius: 18px 18px 0 0;
+            margin-right: 0.35rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: #fff;
+            background: rgba(40, 66, 128, 0.9);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #fff;
+            background: linear-gradient(135deg, #3d72ff, #9b3cff);
+            box-shadow: 0 18px 40px rgba(73, 90, 255, 0.25);
+        }
+
+        .table {
+            color: #e8eef8;
+        }
+
+        .table thead th {
+            color: #b8cbff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .table tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(85, 120, 255, 0.08);
+        }
+
+        input.form-control,
+        .form-select {
+            background: rgba(12, 19, 38, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #eef3ff;
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06);
+        }
+
+        input.form-control:focus,
+        .form-select:focus {
+            background: rgba(15, 24, 45, 0.98);
+            border-color: rgba(95, 167, 255, 0.55);
+            box-shadow: 0 0 0 0.2rem rgba(95, 167, 255, 0.14);
+            color: #fff;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #5f82ff 0%, #cf53ff 100%);
+            border: none;
+            box-shadow: 0 16px 30px rgba(95, 130, 255, 0.28);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 35px rgba(95, 130, 255, 0.34);
+        }
+
+        .btn-outline-info,
+        .btn-outline-light {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #d1e0ff;
+        }
+
+        .btn-outline-info:hover,
+        .btn-outline-light:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+
+        .chart-card {
+            position: relative;
+            background: linear-gradient(180deg, rgba(15, 25, 48, 0.98) 0%, rgba(8, 16, 32, 0.95) 100%);
+            border: 1px solid rgba(94, 143, 255, 0.16);
+            box-shadow: 0 28px 70px rgba(20, 50, 110, 0.28);
+            border-radius: 28px;
+            padding: 1.25rem;
+            min-height: 420px;
+            overflow: hidden;
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .chart-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 10% 20%, rgba(95, 138, 255, 0.12), transparent 16%),
+                        radial-gradient(circle at 90% 80%, rgba(191, 80, 255, 0.12), transparent 14%);
+            mix-blend-mode: screen;
+        }
+
+        .list-conv .list-group-item {
+            background: rgba(14, 21, 39, 0.96);
+            color: #e9edf9;
+            border-color: rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .list-conv .list-group-item:hover {
+            background: rgba(64, 112, 255, 0.15);
+            transform: translateX(1px);
+        }
+
+        .list-conv .list-group-item.active {
+            background: linear-gradient(135deg, rgba(63, 119, 255, 0.22), rgba(170, 58, 255, 0.18));
+            border-color: rgba(95, 143, 255, 0.35);
+            color: #fff;
+        }
+
+        #chat {
+            background: rgba(10, 16, 32, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.04);
+        }
+
+        #chat pre {
+            background: rgba(6, 12, 25, 0.95);
+        }
+
+        #chat details summary {
+            cursor: pointer;
+        }
+
+        .msg-user { border-left: 3px solid #5f82ff; }
+        .msg-ai   { border-left: 3px solid #8f5bff; }
+        .msg-destaque {
+            background: rgba(255, 193, 7, 0.1) !important;
+            border-left: 4px solid #ffc107 !important;
+            box-shadow: inset 0 0 8px rgba(255, 193, 7, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -62,8 +242,26 @@
                 <ul id="ul-zero" class="list-unstyled mb-0 small"></ul>
             </div>
 
-            <h5>Top 10 Gastos (últimos 30 dias)</h5>
-            <canvas id="chart-top"></canvas>
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col-auto">
+                    <label class="form-label mb-1">Início:</label>
+                    <input id="top-inicio" type="date" class="form-control periodo-data">
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-1">Fim:</label>
+                    <input id="top-fim" type="date" class="form-control periodo-data">
+                </div>
+                <div class="col-auto">
+                    <button type="button" id="top-aplicar" class="btn btn-primary">Aplicar</button>
+                </div>
+                <div class="col-auto align-self-center">
+                    <small id="top-periodo-texto" class="text-muted">Período mês atual</small>
+                </div>
+            </div>
+            <h5>Top 10 Gastos</h5>
+            <div class="chart-card mb-3">
+                <canvas id="chart-top"></canvas>
+            </div>
         </div>
 
         <!-- USUÁRIOS -->
@@ -74,13 +272,18 @@
 
         <!-- GASTOS -->
         <div class="tab-pane fade" id="tab-gastos">
-            <div class="mb-3">
-                <label>Período:</label>
-                <select id="periodo" class="form-select w-auto d-inline-block">
-                    <option value="7">Últimos 7 dias</option>
-                    <option value="30" selected>Últimos 30 dias</option>
-                    <option value="90">Últimos 90 dias</option>
-                </select>
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Início</label>
+                    <input id="gastos-inicio" type="date" class="form-control periodo-data">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Fim</label>
+                    <input id="gastos-fim" type="date" class="form-control periodo-data">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" id="gastos-aplicar" class="btn btn-primary w-100">Aplicar</button>
+                </div>
             </div>
             <table class="table table-hover">
                 <thead><tr><th>#</th><th>Usuário</th><th>Total Gasto</th><th>Modelo Top</th></tr></thead>
@@ -129,6 +332,16 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const fmt = n => Number(n).toLocaleString('pt-BR');
+const fmtCurrency = n => Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtShortMoney = n => {
+    const x = Number(n);
+    if (Number.isNaN(x)) return '-';
+    if (Math.abs(x) >= 1_000_000) {
+        const scaled = Math.trunc((x / 1_000_000) * 1000) / 1000;
+        return `$ ${scaled.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
+    }
+    return `$ ${x.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 const $ = id => document.getElementById(id);
 const escapeHtml = s => String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const dt = s => s ? new Date(s).toLocaleString('pt-BR') : '';
@@ -157,29 +370,155 @@ fetch('/api/resumo').then(r => r.json()).then(d => {
 }).catch(e => console.error('Erro resumo:', e));
 
 let chartTop;
-function carregarRanking(dias = 30) {
-    fetch(`/api/ranking?dias=${dias}`).then(r => r.json()).then(data => {
-        if (chartTop) chartTop.destroy();
-        chartTop = new Chart($('chart-top'), {
+
+function getSelectedPeriod(source) {
+    if (source === 'top') {
+        return {
+            inicio: $('top-inicio')?.value,
+            fim: $('top-fim')?.value,
+        };
+    }
+    if (source === 'gastos') {
+        return {
+            inicio: $('gastos-inicio')?.value,
+            fim: $('gastos-fim')?.value,
+        };
+    }
+    const gastosInicio = $('gastos-inicio')?.value;
+    const gastosFim = $('gastos-fim')?.value;
+    if (gastosInicio && gastosFim) {
+        return { inicio: gastosInicio, fim: gastosFim };
+    }
+    return {
+        inicio: $('top-inicio')?.value,
+        fim: $('top-fim')?.value,
+    };
+}
+
+function syncPeriodValues(inicio, fim) {
+    ['top-inicio', 'gastos-inicio'].forEach(id => { if ($(id)) $(id).value = inicio; });
+    ['top-fim', 'gastos-fim'].forEach(id => { if ($(id)) $(id).value = fim; });
+    if ($('top-periodo-texto')) {
+        $('top-periodo-texto').textContent = `Período: ${inicio} até ${fim}`;
+    }
+}
+
+function carregarRanking(inicio, fim) {
+    if (!inicio || !fim) {
+        const selected = getSelectedPeriod();
+        inicio = selected.inicio;
+        fim = selected.fim;
+    }
+    if (!inicio || !fim) {
+        return;
+    }
+    const fimParam = fim + 'T23:59:59';
+    fetch(`/api/ranking?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fimParam)}`).then(r => r.json()).then(data => {
+        if (chartTop) {
+            chartTop.destroy();
+            chartTop = null;
+        }
+        const chartCanvas = $('chart-top');
+        const ctx = chartCanvas.getContext('2d');
+        const gradientHeight = chartCanvas.offsetHeight || 420;
+        const gradient = ctx.createLinearGradient(0, 0, 0, gradientHeight);
+        gradient.addColorStop(0, 'rgba(95, 130, 255, 0.92)');
+        gradient.addColorStop(0.5, 'rgba(154, 68, 255, 0.78)');
+        gradient.addColorStop(1, 'rgba(124, 68, 255, 0.32)');
+
+        chartTop = new Chart(chartCanvas, {
             type: 'bar',
             data: {
                 labels: data.map(d => d.nome || d.email || d.username),
-                datasets: [{ label: 'Gasto', data: data.map(d => d.total_gasto), backgroundColor: '#1f6feb' }]
+                datasets: [{
+                    label: 'Gasto ($)',
+                    data: data.map(d => d.total_gasto),
+                    backgroundColor: gradient,
+                    borderColor: 'rgba(255, 255, 255, 0.18)',
+                    borderWidth: 1,
+                    borderRadius: 18,
+                    borderSkipped: false,
+                    maxBarThickness: 28,
+                    minBarLength: 8,
+                }]
             },
-            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                layout: { padding: { top: 8, bottom: 8, left: 4, right: 4 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 56, 0.96)',
+                        titleColor: '#f8faff',
+                        bodyColor: '#dbe5ff',
+                        borderColor: 'rgba(147, 143, 255, 0.35)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: ctx => {
+                                const value = ctx.raw ?? ctx.parsed?.x ?? ctx.parsed?.y ?? 0;
+                                return fmtShortMoney(value);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.08)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#b8cbff',
+                            callback: value => fmtShortMoney(value)
+                        }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: {
+                            color: '#e5eeff',
+                            font: { size: 13 }
+                        }
+                    }
+                }
+            }
         });
         $('tbl-gastos').innerHTML = data.map((d, i) => `
             <tr>
                 <td>${i+1}</td>
                 <td><b>${d.nome || '-'}</b><br><small class="text-muted">${d.email || ''}</small></td>
-                <td>${fmt(d.total_gasto)}</td>
-                <td>${d.modelo_top}<br><small class="text-muted">${fmt(d.gasto_modelo_top)}</small></td>
+                <td>${fmtShortMoney(d.total_gasto)}</td>
+                <td>${d.modelo_top}<br><small class="text-muted">${fmtShortMoney(d.gasto_modelo_top)}</small></td>
             </tr>
         `).join('');
     });
 }
-carregarRanking();
-$('periodo').addEventListener('change', e => carregarRanking(e.target.value));
+
+function setDefaultPeriod() {
+    const hoje = new Date();
+    const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    const fim = hoje.toISOString().slice(0, 10);
+    syncPeriodValues(inicio, fim);
+    return { inicio, fim };
+}
+
+function aplicarPeriodo(source) {
+    const selected = getSelectedPeriod(source);
+    const inicio = selected.inicio;
+    const fim = selected.fim;
+    if (!inicio || !fim) {
+        alert('Informe início e fim.');
+        return;
+    }
+    syncPeriodValues(inicio, fim);
+    carregarRanking(inicio, fim);
+}
+
+const periodoPadrao = setDefaultPeriod();
+carregarRanking(periodoPadrao.inicio, periodoPadrao.fim);
+$('top-aplicar').addEventListener('click', () => aplicarPeriodo('top'));
+$('gastos-aplicar').addEventListener('click', () => aplicarPeriodo('gastos'));
 
 // === BUSCA DE USUÁRIOS ===
 let timer;
@@ -253,16 +592,21 @@ function _filtrosQS(base) {
     const qs = new URLSearchParams(base);
     if ($('c-inicio').value) qs.set('inicio', $('c-inicio').value);
     if ($('c-fim').value)    qs.set('fim', $('c-fim').value + 'T23:59:59');
+    if ($('c-texto').value.trim()) qs.set('texto', $('c-texto').value.trim());
     return qs;
 }
 
 function carregarConversas() {
     const u = $('c-user').value.trim();
-    if (!u) { alert('Digite a matrícula.'); return; }
+    const texto = $('c-texto').value.trim();
+    if (!u && !texto) { alert('Digite a matrícula ou texto para buscar.'); return; }
     $('lista-conversas').innerHTML = '<div class="text-muted p-2">Carregando...</div>';
     $('chat').innerHTML = '<span class="text-muted">Selecione uma conversa.</span>';
 
-    fetch('/api/conversas?' + _filtrosQS({username: u})).then(r => r.json()).then(d => {
+    const base = {};
+    if (u) base.username = u;
+    const qs = _filtrosQS(base);
+    fetch('/api/conversas?' + qs).then(r => r.json()).then(d => {
         if (d.erro) {
             $('c-info').textContent = '';
             $('lista-conversas').innerHTML = `<div class="text-danger p-2">${d.erro}</div>`;
@@ -314,8 +658,20 @@ function renderChat(msgs) {
                     '<pre id="' + uid + '" style="display:none">' + escapeHtml(txt) + '</pre>' +
                 '</div>';
         }).join('');
-        const cls  = m.isUser ? 'msg-user' : 'msg-ai';
-        const quem = m.isUser ? '👤 Usuário' : '🤖 ' + (m.model || m.sender || 'Assistente');
+        
+        // Define classe de destaque se contém o termo
+        let cls  = m.isUser ? 'msg-user' : 'msg-ai';
+        if (m.contem_termo) cls += ' msg-destaque';
+        
+        // Monta informações do remetente
+        let quem = '';
+        if (m.isUser) {
+            quem = '👤 Usuário';
+            if (m.username) quem += ` (${escapeHtml(m.username)})`;
+        } else {
+            quem = '🤖 ' + (m.model || m.sender || 'Assistente');
+        }
+        
         return '<div class="card p-2 mb-2 ' + cls + '">' +
                 '<small class="text-muted">' + quem + ' · ' + dt(m.createdAt) + '</small>' +
                 corpo +

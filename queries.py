@@ -109,18 +109,123 @@ def buscar_usuarios(termo):
 # 💬 NOVO: CONVERSAS DO USUÁRIO
 # ============================================================
 
-def listar_conversas(username, inicio=None, fim=None):
+def _history_conversations(user_id, inicio=None, fim=None):
     db = get_db()
-    user = db.users.find_one({"username": username})
-    if not user:
-        return {"erro": f"Usuário '{username}' não encontrado"}
-
-    uid = str(user["_id"])
-    match = {"user": uid}
+    match = {"user": user_id}
     if inicio or fim:
         rng = {}
         if inicio: rng["$gte"] = inicio
         if fim:    rng["$lte"] = fim
+        match["$or"] = [
+            {"createdAt": rng},
+            {"updatedAt": rng},
+            {"deletedAt": rng},
+        ]
+
+    docs = list(db.conversationhistories.find(
+        match,
+        {"conversationId": 1, "originalConversationId": 1, "title": 1,
+        "model": 1, "createdAt": 1, "updatedAt": 1,
+        "deletedAt": 1, "fullMessages": 1}
+    ).sort("updatedAt", -1).limit(200))
+
+    results = []
+    for doc in docs:
+        cid = doc.get("originalConversationId") or doc.get("conversationId")
+        if not cid:
+            continue
+
+        messages = doc.get("fullMessages") or []
+        timestamps = [m.get("createdAt") for m in messages if m.get("createdAt")]
+        primeira = min(timestamps) if timestamps else doc.get("createdAt")
+        ultima = max(timestamps) if timestamps else doc.get("updatedAt") or doc.get("createdAt")
+
+        results.append({
+            "_id": cid,
+            "conversationId": cid,
+            "title": doc.get("title") or "(sem título)",
+            "model": doc.get("model"),
+            "qtd": len(messages),
+            "primeira": primeira,
+            "ultima": ultima,
+            "deleted": bool(doc.get("deletedAt")),
+        })
+    return results
+
+
+def _history_conversations(user_id=None, inicio=None, fim=None, texto=None):
+    db = get_db()
+    filters = []
+    if user_id:
+        filters.append({"user": user_id})
+    if texto:
+        regex = {"$regex": re.escape(texto), "$options": "i"}
+        filters.append({"$or": [
+            {"fullMessages.text": regex},
+            {"title": regex},
+        ]})
+    if inicio or fim:
+        rng = {}
+        if inicio: rng["$gte"] = inicio
+        if fim: rng["$lte"] = fim
+        filters.append({"$or": [
+            {"createdAt": rng},
+            {"updatedAt": rng},
+            {"deletedAt": rng},
+        ]})
+
+    match = {"$and": filters} if len(filters) > 1 else (filters[0] if filters else {})
+
+    docs = list(db.conversationhistories.find(
+        match,
+        {"conversationId": 1, "originalConversationId": 1, "title": 1,
+        "model": 1, "createdAt": 1, "updatedAt": 1,
+        "deletedAt": 1, "fullMessages": 1}
+    ).sort("updatedAt", -1).limit(200))
+
+    results = []
+    for doc in docs:
+        cid = doc.get("originalConversationId") or doc.get("conversationId")
+        if not cid:
+            continue
+
+        messages = doc.get("fullMessages") or []
+        timestamps = [m.get("createdAt") for m in messages if m.get("createdAt")]
+        primeira = min(timestamps) if timestamps else doc.get("createdAt")
+        ultima = max(timestamps) if timestamps else doc.get("updatedAt") or doc.get("createdAt")
+
+        results.append({
+            "_id": cid,
+            "conversationId": cid,
+            "title": doc.get("title") or "(sem título)",
+            "model": doc.get("model"),
+            "qtd": len(messages),
+            "primeira": primeira,
+            "ultima": ultima,
+            "deleted": bool(doc.get("deletedAt")),
+        })
+    return results
+
+
+def listar_conversas(username=None, inicio=None, fim=None, texto=None):
+    db = get_db()
+    user = None
+    uid = None
+    if username:
+        user = db.users.find_one({"username": username})
+        if not user:
+            return {"erro": f"Usuário '{username}' não encontrado"}
+        uid = str(user["_id"])
+
+    match = {}
+    if uid:
+        match["user"] = uid
+    if texto:
+        match["text"] = {"$regex": re.escape(texto), "$options": "i"}
+    if inicio or fim:
+        rng = {}
+        if inicio: rng["$gte"] = inicio
+        if fim: rng["$lte"] = fim
         match["createdAt"] = rng
 
     convs = list(db.messages.aggregate([
@@ -133,27 +238,53 @@ def listar_conversas(username, inicio=None, fim=None):
             "model": {"$last": "$model"},
         }},
         {"$sort": {"ultima": -1}},
-        {"$limit": 200},
     ]))
 
     ids = [c["_id"] for c in convs]
-    titulos = {c["conversationId"]: c.get("title")
-            for c in db.conversations.find(
-                {"conversationId": {"$in": ids}},
-                {"conversationId": 1, "title": 1})}
+    titulos = {}
+    if ids:
+        titulos = {c["conversationId"]: c.get("title")
+                for c in db.conversations.find(
+                    {"conversationId": {"$in": ids}},
+                    {"conversationId": 1, "title": 1})}
+        titulos.update({
+            (c.get("originalConversationId") or c.get("conversationId")): c.get("title")
+            for c in db.conversationhistories.find(
+                {"$or": [
+                    {"conversationId": {"$in": ids}},
+                    {"originalConversationId": {"$in": ids}}
+                ]},
+                {"conversationId": 1, "originalConversationId": 1, "title": 1})
+        })
 
     for c in convs:
         c["conversationId"] = c["_id"]
         c["title"] = titulos.get(c["_id"]) or "(sem título)"
 
+    history_convs = []
+    if uid or texto:
+        history_convs = _history_conversations(uid, inicio, fim, texto)
+
+    merged = []
+    seen = set(ids)
+
+    merged.extend(convs)
+    for h in history_convs:
+        if h["conversationId"] in seen:
+            continue
+        merged.append(h)
+        seen.add(h["conversationId"])
+
+    merged.sort(key=lambda x: x.get("ultima") or x.get("primeira") or x.get("createdAt"), reverse=True)
+
     return {
         "usuario": {
-            "nome": user.get("name"),
-            "username": username,
-            "email": user.get("email"),
-            "_id": uid,
+            "nome": user.get("name") if user else "Busca por texto",
+            "username": username or "",
+            "email": user.get("email") if user else "",
+            "_id": uid or "",
         },
-        "conversas": _clean(convs),
+        "conversas": _clean(merged),
     }
 
 
@@ -165,16 +296,47 @@ def buscar_mensagens(conversation_id, inicio=None, fim=None, texto=None):
         if inicio: rng["$gte"] = inicio
         if fim:    rng["$lte"] = fim
         match["createdAt"] = rng
-    if texto:
-        match["text"] = {"$regex": re.escape(texto), "$options": "i"}
+    # NÃO filtra por texto aqui - retorna todas as mensagens
+    # (texto será usado apenas para destacar, não para filtrar)
 
     msgs = list(db.messages.find(match).sort("createdAt", 1))
-    return _clean([_parse_msg(m) for m in msgs])
+    if msgs:
+        # Faz lookup com tabela de usuários para pegar username
+        msgs = list(db.messages.aggregate([
+            {"$match": match},
+            {"$sort": {"createdAt": 1}},
+            {"$lookup": {
+                "from": "users",
+                "let": {"user_str": "$user"},
+                "pipeline": [
+                    {"$match": {"$expr": {
+                        "$eq": [{"$toString": "$_id"}, "$$user_str"]
+                    }}}
+                ],
+                "as": "user_info"
+            }},
+            {"$unwind": {"path": "$user_info", "preserveNullAndEmptyArrays": True}}
+        ]))
+        return _clean([_parse_msg(m, texto) for m in msgs])
+
+    history_filter = {
+        "$or": [
+            {"conversationId": conversation_id},
+            {"originalConversationId": conversation_id},
+        ]
+    }
+    history = db.conversationhistories.find_one(history_filter)
+    if history:
+        records = history.get("fullMessages") or []
+        # Retorna TODAS as mensagens, não filtra por texto
+        return _clean([_parse_msg(m, texto) for m in records])
+
+    return _clean([])
 
 
-def _parse_msg(m):
+def _parse_msg(m, texto_busca=None):
     """Separa texto final / thinking / tool. Cobre formato string (antigo)
-    e formato content=array (novo)."""
+    e formato content=array (novo). Também marca se contém o termo buscado."""
     blocos = []
     content = m.get("content")
 
@@ -205,11 +367,47 @@ def _parse_msg(m):
     if not blocos:
         blocos.append({"tipo": "texto", "conteudo": "(vazio)"})
 
+    # Verifica se a mensagem contém o termo de busca
+    contem_termo = False
+    if texto_busca:
+        pattern = re.compile(re.escape(texto_busca), re.IGNORECASE)
+        texto_completo = m.get("text", "") or ""
+        if isinstance(content, list):
+            for parte in content:
+                if isinstance(parte, dict) and parte.get("type") == "text":
+                    texto_completo += " " + (parte.get("text", "") or "")
+        contem_termo = bool(pattern.search(texto_completo))
+
+    # Extrai username de várias fontes possíveis
+    username = None
+    
+    # 1. Tenta do user_info (vem do lookup com tabela de usuários)
+    user_info = m.get("user_info")
+    if isinstance(user_info, dict) and user_info:
+        username = user_info.get("username")
+    
+    # 2. Se não encontrou, tenta do sender
+    if not username:
+        sender_info = m.get("sender")
+        if isinstance(sender_info, dict):
+            username = sender_info.get("username") or sender_info.get("name")
+        elif isinstance(sender_info, str) and sender_info != "User":
+            username = sender_info
+    
+    # 3. Se for mensagem de usuário e ainda não tem username, tenta extrair do user field
+    if not username and m.get("isCreatedByUser"):
+        user_id = m.get("user")
+        if isinstance(user_id, str) and user_id:
+            # Se tiver user_id como string, usa como fallback
+            username = f"user_{user_id[-8:]}" if len(user_id) > 8 else user_id
+
     return {
         "messageId": m.get("messageId"),
         "isUser": m.get("isCreatedByUser", False),
         "sender": m.get("sender"),
+        "username": username,  # username do usuário
         "model": m.get("model"),
         "createdAt": m.get("createdAt"),
+        "contem_termo": contem_termo,  # marca se contém o termo buscado
         "blocos": blocos,
     }

@@ -36,9 +36,17 @@ def api_resumo():
 
 @app.route("/api/ranking")
 def api_ranking():
-    dias = int(request.args.get("dias", 30))
-    fim = datetime.now()
-    inicio = fim - timedelta(days=dias)
+    inicio = _parse_data(request.args.get("inicio"))
+    fim = _parse_data(request.args.get("fim"))
+    if inicio or fim:
+        if not inicio:
+            inicio = datetime(1970, 1, 1)
+        if not fim:
+            fim = datetime.now()
+    else:
+        dias = int(request.args.get("dias", 30))
+        fim = datetime.now()
+        inicio = fim - timedelta(days=dias)
     return jsonify(ranking_gastos(inicio, fim))
 
 @app.route("/api/buscar")
@@ -68,13 +76,15 @@ def api_acao():
 
 @app.route("/api/conversas")
 def api_conversas():
-    username = request.args.get("username", "").strip()
-    if not username:
-        return jsonify({"erro": "informe a matrícula"}), 400
+    username = request.args.get("username", "").strip() or None
+    texto = request.args.get("texto", "").strip() or None
+    if not username and not texto:
+        return jsonify({"erro": "informe a matrícula ou pesquise por texto"}), 400
     return jsonify(listar_conversas(
         username,
         _parse_data(request.args.get("inicio")),
         _parse_data(request.args.get("fim")),
+        texto,
     ))
 
 @app.route("/api/mensagens")
