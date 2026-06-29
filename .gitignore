@@ -2,3 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+static/
+frontend/node_modules/
+frontend/dist/
+frontend/@/

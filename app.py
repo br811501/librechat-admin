@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from datetime import datetime, timedelta
 from queries import (resumo_geral, ranking_gastos, buscar_usuarios,
                     listar_conversas, buscar_mensagens)
 from actions import adicionar_creditos, remover_creditos, alterar_role
 from flask.json.provider import DefaultJSONProvider
 from bson import ObjectId
+import os
 
 class MongoJSONProvider(DefaultJSONProvider):
     def default(self, obj):
@@ -14,8 +15,10 @@ class MongoJSONProvider(DefaultJSONProvider):
             return obj.isoformat()
         return super().default(obj)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="")
 app.json = MongoJSONProvider(app)
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 def _parse_data(s):
     """Aceita '2026-01-01' ou '2026-01-01T23:59:59'."""
@@ -28,6 +31,8 @@ def _parse_data(s):
 
 @app.route("/")
 def index():
+    if os.path.exists(os.path.join(STATIC_DIR, "index.html")):
+        return send_from_directory(STATIC_DIR, "index.html")
     return render_template("index.html")
 
 @app.route("/api/resumo")
@@ -98,6 +103,15 @@ def api_mensagens():
         _parse_data(request.args.get("fim")),
         request.args.get("texto") or None,
     ))
+
+@app.route("/<path:path>")
+def spa_fallback(path):
+    file_path = os.path.join(STATIC_DIR, path)
+    if os.path.exists(file_path):
+        return send_from_directory(STATIC_DIR, path)
+    if os.path.exists(os.path.join(STATIC_DIR, "index.html")):
+        return send_from_directory(STATIC_DIR, "index.html")
+    return jsonify({"erro": "not found"}), 404
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
