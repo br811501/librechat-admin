@@ -38,6 +38,36 @@ export interface Conversa {
   ultima: string
 }
 
+export interface AtividadeDia {
+  dia: string
+  mensagens: number
+  usuarios_acima_10: number
+}
+
+export interface UsuarioAtividade {
+  _id: string
+  nome?: string
+  email?: string
+  username?: string
+  dias_acima: number
+  max_mensagens_dia: number
+  total_mensagens: number
+  dias: string[]
+}
+
+export interface AtividadeResponse {
+  periodo: {
+    inicio: string
+    fim: string
+  }
+  total_mensagens: number
+  total_usuarios_acima_10: number
+  media_usuarios_acima_10: number
+  dias_com_usuarios_acima_10: number
+  dias: AtividadeDia[]
+  usuarios_acima_10: UsuarioAtividade[]
+}
+
 export interface ConversasResponse {
   erro?: string
   usuario?: {
@@ -100,6 +130,10 @@ export const api = {
     getJson<Usuario[]>(`/api/buscar?q=${encodeURIComponent(q)}`),
   acao: (payload: AcaoPayload) =>
     postJson<AcaoResponse>("/api/acao", payload),
+  atividade: (inicio: string, fim: string) =>
+    getJson<AtividadeResponse>(
+      `/api/atividade-usuarios?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`
+    ),
   conversas: (params: Record<string, string>) => {
     const qs = new URLSearchParams(params)
     return getJson<ConversasResponse>(`/api/conversas?${qs}`)

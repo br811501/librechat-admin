@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from datetime import datetime, timedelta
 from queries import (resumo_geral, ranking_gastos, buscar_usuarios,
-                    listar_conversas, buscar_mensagens)
+                    listar_conversas, buscar_mensagens, atividade_usuarios)
 from actions import adicionar_creditos, remover_creditos, alterar_role
 from flask.json.provider import DefaultJSONProvider
 from bson import ObjectId
@@ -60,6 +60,18 @@ def api_buscar():
     if len(termo) < 2:
         return jsonify([])
     return jsonify(buscar_usuarios(termo))
+
+@app.route("/api/atividade-usuarios")
+def api_atividade_usuarios():
+    inicio = _parse_data(request.args.get("inicio"))
+    fim = _parse_data(request.args.get("fim"))
+    if inicio and fim:
+        inicio = inicio.replace(hour=0, minute=0, second=0, microsecond=0)
+        fim = fim.replace(hour=23, minute=59, second=59, microsecond=999999)
+    else:
+        fim = datetime.now()
+        inicio = datetime(fim.year, fim.month, 1)
+    return jsonify(atividade_usuarios(inicio, fim))
 
 @app.route("/api/acao", methods=["POST"])
 def api_acao():

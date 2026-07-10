@@ -107,14 +107,37 @@ export function UserActionsDialog({
             ?
           </p>
         ) : (
-          <div className="space-y-2">
-            <Label htmlFor="credits">Quantidade de créditos</Label>
-            <Input
-              id="credits"
-              type="number"
-              value={credits}
-              onChange={(e) => setCredits(e.target.value)}
-            />
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="credits" className="mb-2 block">
+                Quantidade de créditos
+              </Label>
+              <Input
+                id="credits"
+                type="number"
+                value={credits}
+                onChange={(e) => setCredits(e.target.value)}
+                placeholder="Digite um valor ou selecione abaixo"
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                Atalhos rápidos:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[1000000, 3000000, 5000000, 10000000].map((value) => (
+                  <Button
+                    key={value}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setCredits(String(value))}
+                    className="text-xs"
+                  >
+                    {(value / 1000000).toFixed(0)}M
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

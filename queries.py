@@ -1,5 +1,5 @@
 from db import get_db
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
 import re
 
@@ -103,6 +103,143 @@ def buscar_usuarios(termo):
         u["tokenCredits"] = bal["tokenCredits"] if bal else 0
 
     return _clean(docs)
+
+
+def atividade_usuarios(inicio: datetime, fim: datetime):
+    db = get_db()
+
+    inicio_str = inicio.strftime("%Y-%m-%d")
+    fim_str = fim.strftime("%Y-%m-%d")
+
+    def date_range_match(field_name="$createdAt"):
+        return {
+            "$expr": {
+                "$and": [
+                    {"$gte": [{"$dateToString": {"format": "%Y-%m-%d", "date": field_name}}, inicio_str]},
+                    {"$lte": [{"$dateToString": {"format": "%Y-%m-%d", "date": field_name}}, fim_str]},
+                ]
+            }
+        }
+
+    match = date_range_match()
+    user_match = {
+        **date_range_match(),
+        "$or": [
+            {"isCreatedByUser": True},
+            {"isUser": True},
+        ],
+    }
+
+    def user_ref_pipeline():
+        return [
+            {"$addFields": {
+                "userObjId": {
+                    "$cond": [
+                        {"$eq": [{"$type": "$user"}, "string"]},
+                        {"$toObjectId": "$user"},
+                        "$user"
+                    ]
+                }
+            }}
+        ]
+
+    daily_counts = list(db.messages.aggregate([
+        {"$match": match},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$createdAt"}},
+            "mensagens": {"$sum": 1},
+        }},
+        {"$sort": {"_id": 1}},
+    ]))
+
+    daily_heavy_users = list(db.messages.aggregate([
+        {"$match": user_match},
+        *user_ref_pipeline(),
+        {"$group": {
+            "_id": {
+                "dia": {"$dateToString": {"format": "%Y-%m-%d", "date": "$createdAt"}},
+                "user": "$userObjId",
+            },
+            "mensagens": {"$sum": 1},
+        }},
+        {"$match": {"mensagens": {"$gt": 10}}},
+        {"$group": {
+            "_id": "$_id.dia",
+            "usuarios_acima_10": {"$sum": 1},
+        }},
+        {"$sort": {"_id": 1}},
+    ]))
+
+    heavy_users = list(db.messages.aggregate([
+        {"$match": user_match},
+        *user_ref_pipeline(),
+        {"$group": {
+            "_id": {
+                "dia": {"$dateToString": {"format": "%Y-%m-%d", "date": "$createdAt"}},
+                "user": "$userObjId",
+            },
+            "mensagens": {"$sum": 1},
+        }},
+        {"$match": {"mensagens": {"$gt": 10}}},
+        {"$group": {
+            "_id": "$_id.user",
+            "dias_acima": {"$sum": 1},
+            "max_mensagens_dia": {"$max": "$mensagens"},
+            "total_mensagens": {"$sum": "$mensagens"},
+            "dias": {"$push": "$_id.dia"},
+        }},
+        {"$lookup": {
+            "from": "users",
+            "localField": "_id",
+            "foreignField": "_id",
+            "as": "u",
+        }},
+        {"$unwind": {"path": "$u", "preserveNullAndEmptyArrays": True}},
+        {"$project": {
+            "_id": 1,
+            "dias_acima": 1,
+            "max_mensagens_dia": 1,
+            "total_mensagens": 1,
+            "dias": 1,
+            "nome": "$u.name",
+            "email": "$u.email",
+            "username": "$u.username",
+        }},
+        {"$sort": {"dias_acima": -1, "max_mensagens_dia": -1, "total_mensagens": -1}},
+    ]))
+
+    total_days = 0
+    current = inicio.date()
+    end = fim.date()
+    series = []
+    counts_by_day = {d["_id"]: d["mensagens"] for d in daily_counts}
+    heavy_by_day = {d["_id"]: d["usuarios_acima_10"] for d in daily_heavy_users}
+
+    while current <= end:
+        day = current.isoformat()
+        series.append({
+            "dia": day,
+            "mensagens": counts_by_day.get(day, 0),
+            "usuarios_acima_10": heavy_by_day.get(day, 0),
+        })
+        total_days += 1
+        current += timedelta(days=1)
+
+    return _clean({
+        "periodo": {
+            "inicio": inicio.strftime("%Y-%m-%d"),
+            "fim": fim.strftime("%Y-%m-%d"),
+        },
+        "total_mensagens": sum(item["mensagens"] for item in series),
+        "total_usuarios_acima_10": len(heavy_users),
+        "media_usuarios_acima_10": round(
+            sum(item["usuarios_acima_10"] for item in series) / total_days if total_days else 0,
+            2,
+        ),
+        "dias_com_usuarios_acima_10": sum(1 for item in series if item["usuarios_acima_10"] > 0),
+        "dias": series,
+        "usuarios_acima_10": heavy_users,
+    })
 
 
 # ============================================================

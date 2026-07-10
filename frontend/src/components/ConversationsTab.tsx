@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { api, type Conversa, type Mensagem } from "@/lib/api"
 import { fmtDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -20,7 +20,7 @@ function MessageBlock({
 
   if (block.tipo === "texto") {
     return (
-      <div className="mt-1 whitespace-pre-wrap">
+      <div className="whitespace-pre-wrap text-sm leading-relaxed">
         {String(block.conteudo)}
       </div>
     )
@@ -37,20 +37,29 @@ function MessageBlock({
       <button
         type="button"
         className={cn(
-          "text-sm hover:underline",
-          block.tipo === "thinking" ? "text-amber-400" : "text-sky-400"
+          "text-xs font-medium hover:underline transition-colors",
+          block.tipo === "thinking" ? "text-amber-400 hover:text-amber-300" : "text-sky-400 hover:text-sky-300"
         )}
         onClick={() => setOpen((v) => !v)}
       >
         {open ? "▾" : "▸"} {label}
       </button>
       {open && (
-        <pre className="mt-1 overflow-x-auto rounded-md bg-black/40 p-2 text-xs">
+        <pre className="mt-2 overflow-x-auto rounded-md bg-black/50 p-2 text-xs border border-white/10">
           {text}
         </pre>
       )}
     </div>
   )
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
 }
 
 export function ConversationsTab({ initialUsername = "" }: ConversationsTabProps) {
@@ -175,40 +184,70 @@ export function ConversationsTab({ initialUsername = "" }: ConversationsTabProps
           </div>
         </ScrollArea>
 
-        <Card className="lg:col-span-2">
-          <CardContent
-            ref={chatRef}
-            className="max-h-[70vh] min-h-[300px] overflow-y-auto p-4"
-          >
-            {!mensagens.length ? (
-              <p className="text-muted-foreground">
-                Selecione uma conversa para ver as mensagens.
-              </p>
-            ) : (
-              mensagens.map((m, mi) => (
-                <div
-                  key={mi}
-                  className={cn(
-                    "mb-2 rounded-lg border p-3",
-                    m.isUser
-                      ? "border-l-4 border-l-blue-500"
-                      : "border-l-4 border-l-purple-500",
-                    m.contem_termo && "bg-amber-500/10 border-l-amber-400"
-                  )}
-                >
-                  <p className="mb-1 text-xs text-muted-foreground">
-                    {m.isUser
-                      ? `Usuário${m.username ? ` (${m.username})` : ""}`
-                      : m.model || m.sender || "Assistente"}{" "}
-                    · {fmtDate(m.createdAt)}
-                  </p>
-                  {m.blocos.map((b, bi) => (
-                    <MessageBlock key={bi} block={b} />
-                  ))}
-                </div>
-              ))
-            )}
-          </CardContent>
+        <Card className="lg:col-span-2 flex flex-col bg-gradient-to-b from-card/40 to-card/20 border-card/50">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <ScrollArea className="flex-1">
+              <div
+                ref={chatRef}
+                className="p-6 space-y-4"
+              >
+                {!mensagens.length ? (
+                  <div className="flex items-center justify-center h-full text-center py-12">
+                    <p className="text-muted-foreground text-sm">
+                      Selecione uma conversa para ver as mensagens.
+                    </p>
+                  </div>
+                ) : (
+                  mensagens.map((m, mi) => {
+                    const isUser = m.isUser
+                    const senderName = isUser 
+                      ? `${m.username ? m.username : "Usuário"}`
+                      : m.model || m.sender || "Assistente"
+                    const initials = getInitials(senderName)
+
+                    return (
+                      <div
+                        key={mi}
+                        className={cn(
+                          "flex gap-3 items-end group",
+                          isUser && "flex-row-reverse"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition-colors",
+                            isUser
+                              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-blue-50"
+                              : "bg-gradient-to-br from-purple-500 to-purple-600 text-purple-50"
+                          )}
+                          title={senderName}
+                        >
+                          {initials}
+                        </div>
+                        <div
+                          className={cn(
+                            "max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-4 py-3 break-words",
+                            isUser
+                              ? "bg-gradient-to-br from-blue-500/80 to-blue-600/80 text-blue-50 rounded-br-sm"
+                              : "bg-gradient-to-br from-slate-600/60 to-slate-700/60 text-slate-100 rounded-bl-sm"
+                          )}
+                        >
+                          {m.contem_termo && (
+                            <div className="mb-2 px-2 py-1 bg-amber-400/20 border border-amber-400/50 rounded text-xs">
+                              📍 Contém termo procurado
+                            </div>
+                          )}
+                          {m.blocos.map((b, bi) => (
+                            <MessageBlock key={bi} block={b} />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </Card>
       </div>
     </div>

@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react"
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   CartesianGrid,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,18 +16,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-const CHART_BAR_SCALE = [
-  "#164e63",
-  "#155e75",
-  "#0e7490",
-  "#0891b2",
-  "#06b6d4",
-  "#22d3ee",
-  "#38bdf8",
-  "#7dd3fc",
-  "#a5f3fc",
-  "#cffafe",
-] as const
+const CHART_COLORS = {
+  stroke: "#d4af37",
+  fill: "rgba(212, 175, 55, 0.16)",
+} as const
 
 interface KpiCardProps {
   label: string
@@ -39,9 +30,27 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, accent, onClick }: KpiCardProps) {
   const styles = {
-    sky: { card: "border-l-sky-400/90", label: "text-sky-400" },
-    amber: { card: "border-l-amber-400/90", label: "text-amber-400" },
-    rose: { card: "border-l-rose-400/90", label: "text-rose-400" },
+    sky: {
+      bg: "from-sky-500/10 to-sky-500/5",
+      border: "border-sky-400/20",
+      dot: "bg-sky-400",
+      label: "text-sky-300",
+      value: "text-sky-50",
+    },
+    amber: {
+      bg: "from-amber-500/10 to-amber-500/5",
+      border: "border-amber-400/20",
+      dot: "bg-amber-400",
+      label: "text-amber-300",
+      value: "text-amber-50",
+    },
+    rose: {
+      bg: "from-rose-500/10 to-rose-500/5",
+      border: "border-rose-400/20",
+      dot: "bg-rose-400",
+      label: "text-rose-300",
+      value: "text-rose-50",
+    },
   } as const
 
   const s = styles[accent]
@@ -49,19 +58,29 @@ function KpiCard({ label, value, accent, onClick }: KpiCardProps) {
   return (
     <Card
       className={cn(
-        "border-border/50 border-l-[3px] bg-card/60 shadow-none transition-colors",
-        s.card,
-        onClick && "cursor-pointer hover:bg-card/90"
+        "relative overflow-hidden border bg-gradient-to-br shadow-sm transition-all duration-300",
+        s.bg,
+        s.border,
+        onClick && "cursor-pointer hover:shadow-lg hover:scale-105 hover:border-opacity-100"
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4">
-        <p className={cn("text-xs font-medium tracking-wide", s.label)}>
-          {label}
-        </p>
-        <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-          {value}
-        </p>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+      <CardContent className="relative p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <div className={cn("w-2 h-2 rounded-full", s.dot)} />
+              <p className={cn("text-xs font-medium tracking-wider uppercase", s.label)}>
+                {label}
+              </p>
+            </div>
+            <p className={cn("text-3xl font-bold tabular-nums tracking-tight", s.value)}>
+              {value}
+            </p>
+          </div>
+          <div className={cn("w-12 h-12 rounded-lg opacity-10", s.dot)} />
+        </div>
       </CardContent>
     </Card>
   )
@@ -98,18 +117,79 @@ export function OverviewTab({
       .catch(console.error)
   }, [period.inicio, period.fim, onRankingLoaded])
 
-  const chartData = ranking.slice(0, 10).map((d) => ({
+  const chartData = ranking.slice(0, 10).map((d, index) => ({
     name: d.nome || d.email || d.username || "-",
     gasto: d.total_gasto,
+    rank: index + 1,
   }))
 
   const chartTick = { fill: "#94a3b8", fontSize: 12 }
+  const splitLabelIntoLines = (value: string, maxChars = 18) => {
+    if (!value) return ["-"]
+
+    const words = value.split(/\s+/).filter(Boolean)
+    if (!words.length) return ["-"]
+
+    if (words.length === 1) {
+      return value.length > maxChars ? [`${value.slice(0, maxChars - 1)}…`] : [value]
+    }
+
+    const lines: string[] = []
+    let current = ""
+
+    words.forEach((word) => {
+      const next = current ? `${current} ${word}` : word
+      if (next.length <= maxChars) {
+        current = next
+      } else {
+        if (current) lines.push(current)
+        current = word
+      }
+    })
+
+    if (current) lines.push(current)
+    return lines.slice(0, 2)
+  }
+
+  const CustomAxisTick = ({ x, y, payload }: any) => {
+    const lines = splitLabelIntoLines(String(payload?.value ?? "-"))
+
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text textAnchor="middle" fill="#94a3b8" fontSize={12}>
+          {lines.map((line, index) => (
+            <tspan key={`${line}-${index}`} x={0} dy={index === 0 ? 16 : 14}>
+              {line}
+            </tspan>
+          ))}
+        </text>
+      </g>
+    )
+  }
+
   const chartTooltipStyle = {
-    background: "#151921",
-    border: "1px solid rgba(34, 211, 238, 0.18)",
-    borderRadius: "6px",
-    color: "#e2e8f0",
-    fontSize: "12px",
+    background: "transparent",
+    border: "none",
+    padding: 0,
+  }
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null
+
+    const item = payload[0]
+    const value = Number(item?.value ?? 0)
+
+    return (
+      <div className="rounded-2xl border border-white/10 bg-[#111827]/95 px-3 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Usuário
+        </p>
+        <p className="mt-1 text-sm font-medium text-foreground">{label}</p>
+        <p className="mt-1 text-sm text-amber-300">
+          {fmtShortMoney(value)}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -205,46 +285,50 @@ export function OverviewTab({
         </div>
         <Card className="border-border/50 bg-card/60 p-4 shadow-none">
           <ResponsiveContainer width="100%" height={380}>
-            <BarChart
+            <AreaChart
               data={chartData}
-              layout="vertical"
-              margin={{ left: 4, right: 16, top: 4, bottom: 4 }}
+              margin={{ left: 20, right: 28, top: 10, bottom: 14 }}
             >
+              <defs>
+                <linearGradient id="gastoGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={CHART_COLORS.stroke} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={CHART_COLORS.stroke} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
               <CartesianGrid
                 horizontal={false}
                 strokeDasharray="3 3"
                 stroke="rgba(148, 163, 184, 0.12)"
               />
               <XAxis
-                type="number"
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={<CustomAxisTick />}
+                interval={0}
+                height={110}
+                minTickGap={6}
+              />
+              <YAxis
                 axisLine={false}
                 tickLine={false}
                 tick={chartTick}
                 tickFormatter={(v) => fmtShortMoney(Number(v))}
               />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={128}
-                axisLine={false}
-                tickLine={false}
-                tick={chartTick}
-              />
               <Tooltip
-                cursor={{ fill: "rgba(34, 211, 238, 0.06)" }}
-                formatter={(v) => [fmtShortMoney(Number(v)), "Gasto"]}
+                cursor={{ stroke: "rgba(255,255,255,0.12)", strokeWidth: 1 }}
+                content={<CustomTooltip />}
                 contentStyle={chartTooltipStyle}
-                labelStyle={{ color: "#94a3b8", marginBottom: 4 }}
               />
-              <Bar dataKey="gasto" radius={[0, 4, 4, 0]} maxBarSize={22}>
-                {chartData.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={CHART_BAR_SCALE[i] ?? CHART_BAR_SCALE.at(-1)}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
+              <Area
+                type="monotone"
+                dataKey="gasto"
+                stroke={CHART_COLORS.stroke}
+                fill="url(#gastoGradient)"
+                strokeWidth={2.4}
+                activeDot={{ r: 5, strokeWidth: 0, fill: CHART_COLORS.stroke }}
+              />
+            </AreaChart>
           </ResponsiveContainer>
         </Card>
       </div>
